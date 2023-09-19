@@ -1,1 +1,0 @@
-# erikrub-chess-lib
