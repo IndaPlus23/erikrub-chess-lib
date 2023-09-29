@@ -185,11 +185,11 @@ impl Game {
         let mut direction: usize = start;
 
         while direction < 8 {
-            if direction == allowed_direction || direction == allowed_direction * -1 || allowed_direction == 0
+            if direction as i16 == allowed_direction || direction as i16 == allowed_direction * -1 || allowed_direction == 0
             {
                 let mut newpos = position;
                 let mut range = 0;
-                while range < self.distances.get(&(position as i16)).unwrap()[direction as usize] {
+                while range < self.distances.get(&position).unwrap()[direction as usize] {
                     newpos = newpos + self.movements[direction as usize] as usize;
 
                     let piece: &Option<Piece> = self.gameboard.get(newpos).unwrap();
@@ -222,7 +222,7 @@ impl Game {
         let mut moves: Vec<usize> = Vec::new();
         let mut first_direction: usize = 0;
         while first_direction < 8 {
-            if self.distances.get(&(position as i16)).unwrap()[first_direction] >= 2 {
+            if self.distances.get(&position).unwrap()[first_direction] >= 2 {
                 let mut first_pos: usize = position + (self.movements[first_direction] * 2) as usize;
                 let mut start: usize = 0;
                 let mut end: usize = 4;
@@ -234,7 +234,7 @@ impl Game {
                 while second_direction <= end {
 
 
-                    if self.distances.get(&(firstpos as i16)).unwrap()[second_direction] >= 1 {
+                    if self.distances.get(&first_pos).unwrap()[second_direction] >= 1 {
 
                         let mut test = *self.movements.get(second_direction).unwrap() as usize;
                         
@@ -270,8 +270,8 @@ impl Game {
         let mut direction: i16 = 7;
         while direction <= 9 {
 
-            let test = self.distances.get(&(position as i16)).unwrap();
-            let dir = *self.direction_finder.get(&((direction * reverse))).unwrap();
+            let test = self.distances.get(&position).unwrap();
+            let dir = *self.direction_finder.get(&((direction * reverse))).unwrap() as usize;
             let test2 = test[dir];
 
             if test2 > 0
@@ -328,7 +328,7 @@ impl Game {
             let mut range: usize = 0;
 
             let _x: i16 = position as i16;
-            let test: usize = self.distances.get(&_x).unwrap()[direction] as usize;
+            let test: usize = self.distances.get(&position).unwrap()[direction] as usize;
 
             while range < test {
                 newpos = ((newpos as i16) + self.movements[direction]) as usize;
