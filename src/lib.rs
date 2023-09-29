@@ -6,6 +6,7 @@ use std::str;
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum GameState {
     InProgress,
+    SetPromotion,
     Check,
     GameOver,
 }
@@ -14,12 +15,12 @@ pub struct Game {
     state: GameState,
     turn: PieceColor,
     gameboard: Vec<Option<Piece>>,
-    possible_moves: HashMap<i16, Vec<i16>>,
-    distances: HashMap<i16, Vec<i16>>,
-    string_to_int: HashMap<String, i16>,
-    int_to_string: HashMap<i16, String>,
+    possible_moves: HashMap<usize, Vec<usize>>,
+    distances: HashMap<usize, Vec<i16>>,
+    string_to_int: HashMap<String, usize>,
+    int_to_string: HashMap<usize, String>,
     movements: Vec<i16>,
-    direction_finder: HashMap<i16, usize>,
+    direction_finder: HashMap<i16, i16>,
 }
 
 impl Game {
@@ -38,7 +39,13 @@ impl Game {
     }
 
     pub fn make_move(&mut self, _from: &str, _to: &str) -> Option<GameState> {
-        None
+        let pos = self.string_to_int.get(_from).unwrap();
+        let piece: &Option<Piece> = self.gameboard.get(pos);
+
+
+        let newpos = self.string_to_int.get(_to).unwrap();
+
+        
     }
 
     pub fn set_promotion(&mut self, _piece: &str) -> () {
@@ -56,8 +63,8 @@ impl Game {
             Some(piece) => {
                 if self.turn == piece.piececolor {
                     let mut moves: Vec<String> = Vec::new();
-                    for _move in self.possible_moves.get(&pos).unwrap().iter() {
-                        moves.push(self.int_to_string[_move]);
+                    for _move in self.possible_moves.get(pos).unwrap().iter() {
+                        moves.push(self.int_to_string.get(_move).unwrap());
                         
                     }
                     return Some(moves);
@@ -69,11 +76,11 @@ impl Game {
         }
     }
 
-    fn get_all_possible_moves(&self) -> HashMap<i16, Vec<i16>> {
-        let mut map: HashMap<i16, Vec<i16>> = HashMap::new();
+    fn get_all_possible_moves(&self) -> HashMap<usize, Vec<usize>> {
+        let mut map: HashMap<usize, Vec<usize>> = HashMap::new();
         let mut blocking_indexes: Vec<usize> = Vec::new();
 
-        let mut allowed_direction: HashMap<usize, i16> = HashMap::new();
+        let mut allowed_direction: HashMap<usize, i16> = HashMap::new(); //Blocking and axis
 
         let mut posi = 0;
         while posi < 64 {
@@ -120,43 +127,43 @@ impl Game {
                             Some(allowed) => match piece.piecetype {
                                 PieceType::King => (),
                                 PieceType::Queen => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves(position, 0, 1, self.turn, false, *allowed),
                                 );},
                                 PieceType::Bishop => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves(position, 1, 2, self.turn, false, *allowed),
                                 );},
                                 PieceType::Knight => (),
                                 PieceType::Rook => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves(position, 0, 2, self.turn, true, *allowed),
                                 );},
                                 PieceType::Pawn => (),
                             },
                             None => match piece.piecetype {
                                 PieceType::King => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves(position, 0, 1, self.turn, true, 0),
                                 );},
                                 PieceType::Queen => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves(position, 0, 1, self.turn, false, 0),
                                 );},
                                 PieceType::Bishop => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves(position, 1, 2, self.turn, false, 0),
                                 );},
                                 PieceType::Knight => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves_knight(position, self.turn),
                                 );},
                                 PieceType::Rook => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves(position, 0, 2, self.turn, true, 0),
                                 );},
                                 PieceType::Pawn => {map.insert(
-                                    position as i16,
+                                    position,
                                     self.possible_moves_pawn(position, self.turn, piece.hasmoved),
                                 );},
                             },
@@ -171,11 +178,11 @@ impl Game {
         return map;
     }
 
-    fn possible_moves(&self, position: usize, start: i16, add: i16, turn: PieceColor, king: bool, allowed_direction: i16,) -> Vec<i16> {
-        let mut moves: Vec<i16> = Vec::new();
+    fn possible_moves(&self, position: usize, start: usize, add: usize, turn: PieceColor, king: bool, allowed_direction: i16,) -> Vec<usize> {
+        let mut moves: Vec<usize> = Vec::new();
         let mut state: GameState = GameState::InProgress;
 
-        let mut direction: i16 = start;
+        let mut direction: usize = start;
 
         while direction < 8 {
             if direction == allowed_direction || direction == allowed_direction * -1 || allowed_direction == 0
@@ -192,7 +199,7 @@ impl Game {
                             if turn == piece.piececolor {
                                 break;
                             }
-                            moves.push(newpos as i16);
+                            moves.push(newpos);
                             if turn != piece.piececolor {
                                 break;
                             }
@@ -211,8 +218,8 @@ impl Game {
         moves
     }
 
-    fn possible_moves_knight(&self, position: usize, turn: PieceColor) -> Vec<i16> {
-        let mut moves: Vec<i16> = Vec::new();
+    fn possible_moves_knight(&self, position: usize, turn: PieceColor) -> Vec<usize> {
+        let mut moves: Vec<usize> = Vec::new();
         let mut first_direction: usize = 0;
         while first_direction < 8 {
             if self.distances.get(&(position as i16)).unwrap()[first_direction] >= 2 {
@@ -236,7 +243,7 @@ impl Game {
                         match piece {
                             Some(piece) => {
                                 if turn != piece.piececolor {
-                                    moves.push(second_pos as i16);
+                                    moves.push(second_pos);
                                 }
                             }
                             None => (),
@@ -252,15 +259,15 @@ impl Game {
         moves
     }
 
-    fn possible_moves_pawn(&self, position: usize, turn: PieceColor, hasmoved: bool) -> Vec<i16> {
-        let mut moves: Vec<i16> = Vec::new();
+    fn possible_moves_pawn(&self, position: usize, turn: PieceColor, hasmoved: bool) -> Vec<usize> {
+        let mut moves: Vec<usize> = Vec::new();
 
         let mut reverse: i16 = -1;
         if turn == PieceColor::Black {
             reverse = reverse + 2;
         }
 
-        let mut direction = 7;
+        let mut direction: i16 = 7;
         while direction <= 9 {
 
             let test = self.distances.get(&(position as i16)).unwrap();
@@ -276,7 +283,7 @@ impl Game {
                         match piece {
                             Some(piece) => (),
                             None => {
-                                moves.push(newpos as i16);
+                                moves.push(newpos);
                             }
                         }
                     } else {
@@ -288,7 +295,7 @@ impl Game {
                             match piece {
                                 Some(piece) => (),
                                 None => {
-                                    moves.push(newpos as i16);
+                                    moves.push(newpos);
                                 }
                             }
                             range = range + 1;
@@ -300,7 +307,7 @@ impl Game {
                     match piece {
                         Some(piece) => {
                             if piece.piececolor != turn {
-                                moves.push(newpos as i16);
+                                moves.push(newpos);
                             }
                         }
                         None => (),
@@ -312,20 +319,19 @@ impl Game {
         moves
     }
 
-    fn test() {}
 
     fn blocking_check(&self, position: usize, start: usize, add: usize, turn: PieceColor,) -> Option<(usize, i16)> {
-        let mut direction = start;
+        let mut direction: usize = start;
         while direction < 8 {
-            let mut newpos = position;
+            let mut newpos: usize = position;
             let mut blocking: Option<usize> = None;
             let mut range: usize = 0;
 
             let _x: i16 = position as i16;
-            let test: usize = self.distances.get(&_x).unwrap()[*&direction] as usize;
+            let test: usize = self.distances.get(&_x).unwrap()[direction] as usize;
 
             while range < test {
-                newpos = newpos + self.movements[direction] as usize;
+                newpos = ((newpos as i16) + self.movements[direction]) as usize;
                 let piece: &Option<Piece> = self.gameboard.get(newpos).unwrap();
 
                 match piece {
@@ -359,10 +365,10 @@ impl Game {
         return None;
     }
 
-    fn string_to_int() -> HashMap<String, i16> {
-        let mut map: HashMap<String, i16> = HashMap::new();
+    fn string_to_int() -> HashMap<String, usize> {
+        let mut map: HashMap<String, usize> = HashMap::new();
 
-        let mut count: i16 = 0;
+        let mut count: usize = 0;
 
         let mut row: u8 = 8;
         while row > 0 {
@@ -382,8 +388,8 @@ impl Game {
         map
     }
 
-    fn int_to_string(&self) -> HashMap<i16, String> {
-        let mut map: HashMap<i16, String> = HashMap::new();
+    fn int_to_string(&self) -> HashMap<usize, String> {
+        let mut map: HashMap<usize, String> = HashMap::new();
 
         for (key, val) in self.string_to_int.iter() {
             map.insert(*val, *key);
@@ -391,23 +397,23 @@ impl Game {
         map
     }
 
-    fn generate_distances() -> HashMap<i16, Vec<i16>> {
-        let mut distances: HashMap<i16, Vec<i16>> = HashMap::new();
-        let mut count: i16 = 0;
+    fn generate_distances() -> HashMap<usize, Vec<i16>> {
+        let mut distances: HashMap<usize, Vec<i16>> = HashMap::new();
+        let mut count: usize = 0;
 
-        let mut row: i16 = 0;
+        let mut row: usize = 0;
         while row < 8 {
-            let mut col: i16 = 0;
+            let mut col: usize = 0;
             while col < 8 {
-                let up = row;
-                let right = 7 - col;
-                let down = 7 - row;
-                let left = col;
+                let up: i16 = row as i16;
+                let right: i16 = 7 - col as i16;
+                let down: i16 = 7 - row as i16;
+                let left: i16 = col as i16;
 
-                let up_right = cmp::min(up, right);
-                let down_right = cmp::min(down, right);
-                let down_left = cmp::min(down, left);
-                let up_left = cmp::min(up, left);
+                let up_right: i16 = cmp::min(up, right);
+                let down_right: i16 = cmp::min(down, right);
+                let down_left: i16 = cmp::min(down, left);
+                let up_left: i16 = cmp::min(up, left);
 
                 let v: Vec<i16> = vec![
                     up, up_right, right, down_right, down, down_left, left, up_left,
