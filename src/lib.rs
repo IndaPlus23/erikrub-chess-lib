@@ -106,19 +106,8 @@ impl Game {
                 self.possible_moves = self.get_all_possible_moves(self.turn).0;
 
             }
-
-            
-
-            
-
-            
             
         }
-
-
-
-
-        
 
         self.state = state;
         println!("{:?}", self.state);
@@ -190,18 +179,6 @@ impl Game {
     fn check_game_state(&self) -> GameState {
         GameState::InProgress
     }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     pub fn get_possible_moves(&self, _postion: &str) -> Option<Vec<String>> {
@@ -421,11 +398,9 @@ impl Game {
                             }
                         }
                     }
-
                     second_direction = second_direction + 4;
                 }
             }
-
             first_direction = first_direction + 2;
         }
         (moves, state)
