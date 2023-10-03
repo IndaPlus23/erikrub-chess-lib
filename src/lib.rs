@@ -148,7 +148,10 @@ impl Game {
             self.promotion_pos = None;
 
             let mut turn = self.turn;
-            let mut state = self.get_all_possible_moves(turn).1;
+            println!("{:?}", turn);
+            println!("--------------------------------------------------------");
+            let state = self.get_all_possible_moves(turn).1;
+            println!("--------------------------------------------------------");
 
             if self.turn == PieceColor::White{
                 
@@ -157,11 +160,11 @@ impl Game {
                 self.turn = PieceColor::White;
             }
 
-            println!("---------PROM");
 
             self.possible_moves = self.get_all_possible_moves(self.turn).0;
 
             self.state = state;
+            println!("{:?}", self.state);
         }
         
     }
@@ -308,7 +311,10 @@ impl Game {
                             },
                         }
                         map.insert(position, response.0);
-                        state = response.1;
+                        if response.1 == GameState::Check{
+                            state = response.1;
+                        }
+                        
                     }
                 }
                 None => (),
@@ -330,7 +336,7 @@ impl Game {
     ) -> (Vec<usize>, GameState) {
         let mut moves: Vec<usize> = Vec::new();
         let mut state: GameState = GameState::InProgress;
-       // println!("pos: {}", position);
+        println!("pos: {}", position);
         let mut direction: usize = start;
 
         while direction < 8 {
@@ -354,7 +360,7 @@ impl Game {
                             moves.push(newpos);
                             if turn != piece.piececolor {
                                 if piece.piecetype == PieceType::King {
-                                    println!("Check {}", newpos);
+                                    println!("Found King");
                                     state = GameState::Check;
                                 }
                                 break;
@@ -374,6 +380,7 @@ impl Game {
 
             direction = direction + add;
         }
+        
         (moves, state)
     }
 
@@ -452,18 +459,19 @@ impl Game {
         let mut moves: Vec<usize> = Vec::new();
         let mut state = GameState::InProgress;
 
+        /* 
         println!("");
         println!("pos {}", position);
         println!("turn {:?}", turn);
         println!("aturn {:?}", self.turn);
         println!("");
-
+        */
         let mut reverse: i16 = -1;
         if turn == PieceColor::Black {
             reverse = reverse + 2;
         }
 
-        println!("reverse {}", reverse);
+       // println!("reverse {}", reverse);
 
         let mut direction: i16 = 7;
         while direction <= 9 {
@@ -492,11 +500,8 @@ impl Game {
                             let mut newpos: usize = position;
                             let mut range: usize = 0;
                             while range < 2 {
-                                println!("old {}", newpos);
-                                println!("dir {}", direction);
-                                println!("rev {}", reverse);
+                                
                                 newpos = (newpos as i16 + (direction * reverse)) as usize;
-                                println!("new {}", newpos);
                                 let piece  = self.gameboard.get(newpos).unwrap();
                                 match piece {
                                     Some(_piece) => (),
@@ -825,17 +830,17 @@ mod tests {
         game.make_move("c8", "d7");
 
         println!("{:?}", game);
-        println!("-----------------------");
+        //println!("-----------------------");
         //println!("{:?}", game.possible_moves);
 
         game.make_move("b7", "b8");
         println!("{:?}", game);
 
-        println!("-----------------------");
+        //println!("-----------------------");
         //println!("{:?}", game.possible_moves);
         game.set_promotion("q");
 
-        println!("-----------------------");
+        //println!("-----------------------");
         //println!("{:?}", game.possible_moves);
 
         println!("{:?}", game);
