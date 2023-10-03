@@ -92,22 +92,27 @@ impl Game {
 
             if state == GameState::SetPromotion {
                 self.promotion_pos = Some(newpos);
+                self.possible_moves = HashMap::new();
             }
             else {
                 state = self.get_all_possible_moves(self.turn).1;
+
+                if self.turn == PieceColor::White {
+                    self.turn = PieceColor::Black;
+                } else {
+                    self.turn = PieceColor::White;
+                }
+
+                self.possible_moves = self.get_all_possible_moves(self.turn).0;
+
             }
 
             
-            println!("{:?}",state);
-
-            if self.turn == PieceColor::White {
-                self.turn = PieceColor::Black;
-            } else {
-                self.turn = PieceColor::White;
-            }
 
             
-            self.possible_moves = self.get_all_possible_moves(self.turn).0;
+
+            
+            
         }
 
 
@@ -142,17 +147,21 @@ impl Game {
             }
             self.promotion_pos = None;
 
-            let mut turn;
+            let mut turn = self.turn;
+            let mut state = self.get_all_possible_moves(turn).1;
 
             if self.turn == PieceColor::White{
-                turn = PieceColor::Black;
+                
+                self.turn = PieceColor::Black;
             } else {
-                turn = PieceColor::White;
+                self.turn = PieceColor::White;
             }
 
-            let state = self.get_all_possible_moves(turn).1;
+            println!("---------PROM");
+
+            self.possible_moves = self.get_all_possible_moves(self.turn).0;
+
             self.state = state;
-            println!("{:?}", self.state);
         }
         
     }
@@ -221,7 +230,7 @@ impl Game {
             let piece: &Option<Piece> = self.gameboard.get(posi).unwrap();
             match piece {
                 Some(piece) => {
-                    if piece.piececolor != self.turn {
+                    if piece.piececolor != turn {
                         let mut respons: Option<(usize, usize)> = None;
                         match piece.piecetype {
                             PieceType::King => (),
@@ -443,10 +452,18 @@ impl Game {
         let mut moves: Vec<usize> = Vec::new();
         let mut state = GameState::InProgress;
 
+        println!("");
+        println!("pos {}", position);
+        println!("turn {:?}", turn);
+        println!("aturn {:?}", self.turn);
+        println!("");
+
         let mut reverse: i16 = -1;
         if turn == PieceColor::Black {
             reverse = reverse + 2;
         }
+
+        println!("reverse {}", reverse);
 
         let mut direction: i16 = 7;
         while direction <= 9 {
@@ -475,9 +492,12 @@ impl Game {
                             let mut newpos: usize = position;
                             let mut range: usize = 0;
                             while range < 2 {
-                                newpos = (newpos as i16 + direction * reverse) as usize;
-                                let piece: &Option<Piece> =
-                                    self.gameboard.get(newpos).expect("This");
+                                println!("old {}", newpos);
+                                println!("dir {}", direction);
+                                println!("rev {}", reverse);
+                                newpos = (newpos as i16 + (direction * reverse)) as usize;
+                                println!("new {}", newpos);
+                                let piece  = self.gameboard.get(newpos).unwrap();
                                 match piece {
                                     Some(_piece) => (),
                                     None => {
@@ -799,21 +819,24 @@ mod tests {
         game.make_move("b8", "a6");
         game.make_move("b5", "b6");
         game.make_move("d7", "d6");
+        println!("{:?}", game);
         game.make_move("b6", "b7");
+        println!("{:?}", game);
         game.make_move("c8", "d7");
 
-
+        println!("{:?}", game);
         println!("-----------------------");
-        println!("{:?}", game.possible_moves);
+        //println!("{:?}", game.possible_moves);
 
         game.make_move("b7", "b8");
+        println!("{:?}", game);
 
         println!("-----------------------");
-        println!("{:?}", game.possible_moves);
+        //println!("{:?}", game.possible_moves);
         game.set_promotion("q");
 
         println!("-----------------------");
-        println!("{:?}", game.possible_moves);
+        //println!("{:?}", game.possible_moves);
 
         println!("{:?}", game);
 
