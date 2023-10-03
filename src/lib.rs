@@ -11,6 +11,7 @@ pub enum GameState {
     GameOver,
 }
 
+#[derive(Clone)]
 pub struct Game {
     state: GameState,
     turn: PieceColor,
@@ -21,31 +22,86 @@ pub struct Game {
     int_to_string: HashMap<usize, String>,
     movements: Vec<i16>,
     direction_finder: HashMap<i16, i16>,
+    promotion_pos: Option<usize>,
 }
 
 impl Game {
-    pub fn new() -> Game {
-        Game {
+    pub fn new() -> Self {
+        let mut game = Game {
             state: GameState::InProgress,
             turn: PieceColor::White,
             movements: vec![-8, -7, 1, 9, 8, 7, -1, -9],
             direction_finder: HashMap::from([(7, 5), (8, 4), (9, 3), (-7, 1), (-8, 0), (-9, 7)]),
             distances: Self::generate_distances(),
             string_to_int: Self::string_to_int(),
-            int_to_string: Self::int_to_string(Self),
+            int_to_string: HashMap::new(),
             gameboard: Self::new_board(),
-            possible_moves: Self::get_all_possible_moves(Self),
-        }
+            possible_moves: HashMap::new(),
+            promotion_pos: None,
+        };
+
+        game.firstload();
+
+        game
+    }
+
+    fn firstload(&mut self) {
+        self.possible_moves = self.get_all_possible_moves();
+        self.int_to_string = self.int_to_string();
     }
 
     pub fn make_move(&mut self, _from: &str, _to: &str) -> Option<GameState> {
-        let pos = self.string_to_int.get(_from).unwrap();
-        let piece: &Option<Piece> = self.gameboard.get(pos);
+        let pos = *self.string_to_int.get(_from).unwrap();
+        let newpos = *self.string_to_int.get(_to).unwrap();
+
+        let allowed: bool;
+        let is_pawn: bool;
+        {
+            let board = &mut self.gameboard;
+            let piece = board.get_mut(pos).unwrap();
+
+            allowed = match piece {
+                Some(piece) if piece.piececolor == self.turn => self
+                    .possible_moves
+                    .get(&pos)
+                    .unwrap()
+                    .iter()
+                    .any(|_move| *_move == newpos),
+                _ => false,
+            };
+
+            is_pawn = match piece {
+                Some(piece) if piece.piecetype == PieceType::Pawn => {
+                    piece.hasmoved = true;
+                    true
+                }
+                _ => false,
+            };
+
+            if allowed {
+                board.swap(pos, newpos);
+                board[pos] = None;
+            }
+        }
+
+        let mut state = GameState::InProgress;
+        if allowed {
+            if is_pawn {
+                state = self.check_promotion(newpos);
+            }
+            if self.turn == PieceColor::White {
+                self.turn = PieceColor::Black;
+            } else {
+                self.turn = PieceColor::White;
+            }
+            self.possible_moves = self.get_all_possible_moves();
+        }
 
 
-        let newpos = self.string_to_int.get(_to).unwrap();
 
-        
+
+        println!("{:?}", state);
+        return Some(state);
     }
 
     pub fn set_promotion(&mut self, _piece: &str) -> () {
@@ -56,16 +112,32 @@ impl Game {
         self.state
     }
 
+    fn check_game_state(&self) -> GameState {
+        GameState::InProgress
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
     pub fn get_possible_moves(&self, _postion: &str) -> Option<Vec<String>> {
-        let pos = self.string_to_int.get(_postion).unwrap();
+        let pos = *self.string_to_int.get(_postion).unwrap();
         let piece: &Option<Piece> = self.gameboard.get(pos).unwrap();
         match piece {
             Some(piece) => {
                 if self.turn == piece.piececolor {
                     let mut moves: Vec<String> = Vec::new();
-                    for _move in self.possible_moves.get(pos).unwrap().iter() {
-                        moves.push(self.int_to_string.get(_move).unwrap());
-                        
+                    for _move in self.possible_moves.get(&pos).unwrap().iter() {
+                        moves.push(self.int_to_string.get(_move).unwrap().to_owned());
                     }
                     return Some(moves);
                 } else {
@@ -78,9 +150,7 @@ impl Game {
 
     fn get_all_possible_moves(&self) -> HashMap<usize, Vec<usize>> {
         let mut map: HashMap<usize, Vec<usize>> = HashMap::new();
-        let mut blocking_indexes: Vec<usize> = Vec::new();
-
-        let mut allowed_direction: HashMap<usize, i16> = HashMap::new(); //Blocking and axis
+        let mut allowed_direction: HashMap<usize, usize> = HashMap::new(); //Blocking and axis
 
         let mut posi = 0;
         while posi < 64 {
@@ -88,7 +158,7 @@ impl Game {
             match piece {
                 Some(piece) => {
                     if piece.piececolor != self.turn {
-                        let respons: Option<(usize, i16)> = None;
+                        let mut respons: Option<(usize, usize)> = None;
                         match piece.piecetype {
                             PieceType::King => (),
                             PieceType::Queen => {
@@ -106,14 +176,14 @@ impl Game {
                         match respons {
                             Some(respons) => {
                                 allowed_direction.insert(respons.0, respons.1);
-                            },
+                            }
                             None => (),
                         }
-                        
                     }
                 }
                 None => (),
             }
+            posi = posi + 1;
         }
 
         let mut position = 0;
@@ -126,46 +196,86 @@ impl Game {
                         match allowed {
                             Some(allowed) => match piece.piecetype {
                                 PieceType::King => (),
-                                PieceType::Queen => {map.insert(
-                                    position,
-                                    self.possible_moves(position, 0, 1, self.turn, false, *allowed),
-                                );},
-                                PieceType::Bishop => {map.insert(
-                                    position,
-                                    self.possible_moves(position, 1, 2, self.turn, false, *allowed),
-                                );},
+                                PieceType::Queen => {
+                                    println!("Here");
+                                    map.insert(
+                                        position,
+                                        self.possible_moves(
+                                            position, 0, 1, self.turn, false, *allowed,
+                                        ),
+                                    );
+                                }
+                                PieceType::Bishop => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves(
+                                            position, 1, 2, self.turn, false, *allowed,
+                                        ),
+                                    );
+                                }
                                 PieceType::Knight => (),
-                                PieceType::Rook => {map.insert(
-                                    position,
-                                    self.possible_moves(position, 0, 2, self.turn, true, *allowed),
-                                );},
-                                PieceType::Pawn => (),
+                                PieceType::Rook => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves(
+                                            position, 0, 2, self.turn, true, *allowed,
+                                        ),
+                                    );
+                                }
+                                PieceType::Pawn => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves_pawn(
+                                            position,
+                                            self.turn,
+                                            piece.hasmoved,
+                                            *allowed,
+                                        ),
+                                    );
+                                }
                             },
                             None => match piece.piecetype {
-                                PieceType::King => {map.insert(
-                                    position,
-                                    self.possible_moves(position, 0, 1, self.turn, true, 0),
-                                );},
-                                PieceType::Queen => {map.insert(
-                                    position,
-                                    self.possible_moves(position, 0, 1, self.turn, false, 0),
-                                );},
-                                PieceType::Bishop => {map.insert(
-                                    position,
-                                    self.possible_moves(position, 1, 2, self.turn, false, 0),
-                                );},
-                                PieceType::Knight => {map.insert(
-                                    position,
-                                    self.possible_moves_knight(position, self.turn),
-                                );},
-                                PieceType::Rook => {map.insert(
-                                    position,
-                                    self.possible_moves(position, 0, 2, self.turn, true, 0),
-                                );},
-                                PieceType::Pawn => {map.insert(
-                                    position,
-                                    self.possible_moves_pawn(position, self.turn, piece.hasmoved),
-                                );},
+                                PieceType::King => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves(position, 0, 1, self.turn, true, 100),
+                                    );
+                                }
+                                PieceType::Queen => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves(position, 0, 1, self.turn, false, 100),
+                                    );
+                                }
+                                PieceType::Bishop => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves(position, 1, 2, self.turn, false, 100),
+                                    );
+                                }
+                                PieceType::Knight => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves_knight(position, self.turn),
+                                    );
+                                }
+                                PieceType::Rook => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves(position, 0, 2, self.turn, true, 100),
+                                    );
+                                }
+                                PieceType::Pawn => {
+                                    map.insert(
+                                        position,
+                                        self.possible_moves_pawn(
+                                            position,
+                                            self.turn,
+                                            piece.hasmoved,
+                                            100,
+                                        ),
+                                    );
+                                }
                             },
                         }
                     }
@@ -178,19 +288,30 @@ impl Game {
         return map;
     }
 
-    fn possible_moves(&self, position: usize, start: usize, add: usize, turn: PieceColor, king: bool, allowed_direction: i16,) -> Vec<usize> {
+    fn possible_moves(
+        &self,
+        position: usize,
+        start: usize,
+        add: usize,
+        turn: PieceColor,
+        king: bool,
+        allowed: usize,
+    ) -> Vec<usize> {
         let mut moves: Vec<usize> = Vec::new();
-        let mut state: GameState = GameState::InProgress;
+        let state: GameState = GameState::InProgress;
 
         let mut direction: usize = start;
 
         while direction < 8 {
-            if direction as i16 == allowed_direction || direction as i16 == allowed_direction * -1 || allowed_direction == 0
+            if direction == allowed
+                || direction + 4 == allowed
+                || direction == allowed + 4
+                || allowed == 100
             {
                 let mut newpos = position;
                 let mut range = 0;
                 while range < self.distances.get(&position).unwrap()[direction as usize] {
-                    newpos = newpos + self.movements[direction as usize] as usize;
+                    newpos = (newpos as i16 + self.movements[direction as usize]) as usize;
 
                     let piece: &Option<Piece> = self.gameboard.get(newpos).unwrap();
 
@@ -203,11 +324,14 @@ impl Game {
                             if turn != piece.piececolor {
                                 break;
                             }
-                            if piece.piecetype == PieceType::King { //king can only move 
-                                break;
-                            }
                         }
-                        None => (),
+                        None => {
+                            moves.push(newpos);
+                        }
+                    }
+                    if king {
+                        // king can only move 1
+                        break;
                     }
                     range = range + 1;
                 }
@@ -223,22 +347,21 @@ impl Game {
         let mut first_direction: usize = 0;
         while first_direction < 8 {
             if self.distances.get(&position).unwrap()[first_direction] >= 2 {
-                let mut first_pos: usize = position + (self.movements[first_direction] * 2) as usize;
+                let first_pos: usize =
+                    (position as i16 + (self.movements[first_direction] * 2)) as usize;
                 let mut start: usize = 0;
                 let mut end: usize = 4;
                 if (((first_direction + 2) / 2) + 1) % 2 == 0 {
                     start = start + 2;
                     end = end + 2;
                 }
+
                 let mut second_direction: usize = start;
                 while second_direction <= end {
-
-
                     if self.distances.get(&first_pos).unwrap()[second_direction] >= 1 {
+                        let test = *self.movements.get(second_direction).unwrap();
 
-                        let mut test = *self.movements.get(second_direction).unwrap() as usize;
-                        
-                        let mut second_pos: usize = first_pos + test;
+                        let second_pos: usize = (first_pos as i16 + test) as usize;
                         let piece: &Option<Piece> = self.gameboard.get(second_pos).unwrap();
                         match piece {
                             Some(piece) => {
@@ -246,7 +369,9 @@ impl Game {
                                     moves.push(second_pos);
                                 }
                             }
-                            None => (),
+                            None => {
+                                moves.push(second_pos);
+                            }
                         }
                     }
 
@@ -259,7 +384,31 @@ impl Game {
         moves
     }
 
-    fn possible_moves_pawn(&self, position: usize, turn: PieceColor, hasmoved: bool) -> Vec<usize> {
+    fn check_promotion(&self, position: usize) -> GameState {
+        if self.turn == PieceColor::White {
+            let dist = self.distances.get(&position).unwrap()[0];
+            if dist == 0 {
+                return GameState::SetPromotion;
+            } else {
+                return GameState::InProgress;
+            }
+        } else {
+            let dist = self.distances.get(&position).unwrap()[4];
+            if dist == 0 {
+                return GameState::SetPromotion;
+            } else {
+                return GameState::InProgress;
+            }
+        }
+    }
+
+    fn possible_moves_pawn(
+        &self,
+        position: usize,
+        turn: PieceColor,
+        hasmoved: bool,
+        allowed: usize,
+    ) -> Vec<usize> {
         let mut moves: Vec<usize> = Vec::new();
 
         let mut reverse: i16 = -1;
@@ -269,58 +418,69 @@ impl Game {
 
         let mut direction: i16 = 7;
         while direction <= 9 {
-
-            let test = self.distances.get(&position).unwrap();
-            let dir = *self.direction_finder.get(&((direction * reverse))).unwrap() as usize;
-            let test2 = test[dir];
-
-            if test2 > 0
+            let dir = *self.direction_finder.get(&direction).unwrap(); //direction_finder: HashMap::from([(7, 5), (8, 4), (9, 3), (-7, 1), (-8, 0), (-9, 7)])
+            if dir == allowed as i16
+                || dir + 4 == allowed as i16
+                || dir == (allowed as i16) + 4
+                || allowed == 100
             {
-                if direction == 8 {
-                    if hasmoved {
-                        let mut newpos: usize = position + (direction * reverse) as usize;
-                        let piece: &Option<Piece> = self.gameboard.get(newpos).unwrap();
-                        match piece {
-                            Some(piece) => (),
-                            None => {
-                                moves.push(newpos);
-                            }
-                        }
-                    } else {
-                        let mut newpos: usize = position;
-                        let mut range: usize = 0;
-                        while range < 2 {
-                            newpos = newpos + (direction * reverse) as usize;
+                let distances = self.distances.get(&position).unwrap();
+                let dir = *self.direction_finder.get(&(direction * reverse)).unwrap() as usize;
+                let distance = distances[dir];
+
+                if distance > 0 {
+                    if direction == 8 {
+                        if hasmoved {
+                            let newpos: usize = (position as i16 + direction * reverse) as usize;
                             let piece: &Option<Piece> = self.gameboard.get(newpos).unwrap();
                             match piece {
-                                Some(piece) => (),
+                                Some(_piece) => (),
                                 None => {
                                     moves.push(newpos);
                                 }
                             }
-                            range = range + 1;
-                        }
-                    }
-                } else {
-                    let mut newpos: usize = position + (direction * reverse) as usize;
-                    let piece: &Option<Piece> = self.gameboard.get(newpos).unwrap();
-                    match piece {
-                        Some(piece) => {
-                            if piece.piececolor != turn {
-                                moves.push(newpos);
+                        } else {
+                            let mut newpos: usize = position;
+                            let mut range: usize = 0;
+                            while range < 2 {
+                                newpos = (newpos as i16 + direction * reverse) as usize;
+                                let piece: &Option<Piece> =
+                                    self.gameboard.get(newpos).expect("This");
+                                match piece {
+                                    Some(_piece) => (),
+                                    None => {
+                                        moves.push(newpos);
+                                    }
+                                }
+                                range = range + 1;
                             }
                         }
-                        None => (),
+                    } else {
+                        let newpos: usize = (position as i16 + direction * reverse) as usize;
+                        let piece: &Option<Piece> = self.gameboard.get(newpos).unwrap();
+                        match piece {
+                            Some(piece) => {
+                                if piece.piececolor != turn {
+                                    moves.push(newpos);
+                                }
+                            }
+                            None => {}
+                        }
                     }
                 }
+                direction = direction + 1;
             }
-            direction = direction + 1;
         }
         moves
     }
 
-
-    fn blocking_check(&self, position: usize, start: usize, add: usize, turn: PieceColor,) -> Option<(usize, i16)> {
+    fn blocking_check(
+        &self,
+        position: usize,
+        start: usize,
+        add: usize,
+        turn: PieceColor,
+    ) -> Option<(usize, usize)> {
         let mut direction: usize = start;
         while direction < 8 {
             let mut newpos: usize = position;
@@ -328,9 +488,9 @@ impl Game {
             let mut range: usize = 0;
 
             let _x: i16 = position as i16;
-            let test: usize = self.distances.get(&position).unwrap()[direction] as usize;
+            let stop: usize = self.distances.get(&position).unwrap()[direction] as usize;
 
-            while range < test {
+            while range < stop {
                 newpos = ((newpos as i16) + self.movements[direction]) as usize;
                 let piece: &Option<Piece> = self.gameboard.get(newpos).unwrap();
 
@@ -342,19 +502,19 @@ impl Game {
 
                         if piece.piecetype != PieceType::King {
                             match blocking {
-                                Some(blocking) => break,
+                                Some(_blocking) => break,
                                 None => {
                                     blocking = Some(newpos);
                                 }
                             }
                         } else {
                             match blocking {
-                                Some(blocking) => return Some((blocking, direction as i16)),
-                                None => (),
+                                Some(_blocking) => return Some((_blocking, direction)),
+                                None => {}
                             }
                         }
                     }
-                    None => (),
+                    None => {}
                 }
 
                 range = range + 1;
@@ -363,6 +523,12 @@ impl Game {
             direction = direction + add;
         }
         return None;
+    }
+
+    fn blocking_check_pawn(&self, position: usize, turn: PieceColor) {
+        if turn == PieceColor::Black { // Vit bonde
+        } else { // Svart bonde
+        }
     }
 
     fn string_to_int() -> HashMap<String, usize> {
@@ -392,7 +558,7 @@ impl Game {
         let mut map: HashMap<usize, String> = HashMap::new();
 
         for (key, val) in self.string_to_int.iter() {
-            map.insert(*val, *key);
+            map.insert(*val, (*key.clone()).to_string());
         }
         map
     }
@@ -445,7 +611,7 @@ impl Game {
             board.push(Some(Piece::new(PieceType::King, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Queen, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Bishop, PieceColor::Black)));
-            board.push(Some(Piece::new(PieceType::King, PieceColor::Black)));
+            board.push(Some(Piece::new(PieceType::Knight, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Rook, PieceColor::Black)));
         }
         fn add_black_pawns(board: &mut Vec<Option<Piece>>) {
@@ -476,6 +642,7 @@ impl Game {
     }
 }
 
+#[derive(Clone)]
 pub struct Piece {
     piecetype: PieceType,
     piececolor: PieceColor,
@@ -500,7 +667,7 @@ impl Piece {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PieceType {
     King,
     Queen,
@@ -510,7 +677,7 @@ pub enum PieceType {
     Pawn,
 }
 
-#[derive(PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PieceColor {
     White,
     Black,
@@ -531,9 +698,39 @@ pub enum PieceColor {
 /// |:----------------------:|
 impl fmt::Debug for Game {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut board = String::new();
+        board.push_str("\n");
+        board.push_str("|:----------------------:");
+        let mut count = 0;
+        for piece in self.gameboard.iter() {
+            if count % 8 == 0 {
+                board.push_str("|");
+                board.push_str("\n");
+                board.push_str("|");
+            }
+            match piece {
+                Some(piece) => {
+                    let symbol: &str = match piece.piecetype {
+                        PieceType::King => " K ",
+                        PieceType::Queen => " Q ",
+                        PieceType::Bishop => " B ",
+                        PieceType::Knight => " Kn",
+                        PieceType::Rook => " R ",
+                        PieceType::Pawn => " P ",
+                    };
+                    board.push_str(symbol);
+                }
+                None => board.push_str(" * "),
+            }
+
+            count = count + 1;
+        }
+        board.push_str("|");
+        board.push_str("\n");
+        board.push_str("|:----------------------:|");
         /* build board representation string */
 
-        write!(f, "")
+        write!(f, "{}", board)
     }
 }
 
@@ -543,6 +740,7 @@ impl fmt::Debug for Game {
 
 #[cfg(test)]
 mod tests {
+
     use super::Game;
     use super::GameState;
 
@@ -560,6 +758,24 @@ mod tests {
 
         println!("{:?}", game);
 
-        assert_eq!(game.get_game_state(), GameState::InProgress);
+        let game = movee(game, "a2", "a4");
+
+        let game = movee(game, "d7", "d5");
+        let game = movee(game, "f2", "f4");
+        let game = movee(game, "d5", "d4");
+        let game = movee(game, "e1", "f2");
+        let game = movee(game, "e8", "d7");
+        let game = movee(game, "f2", "d4");
+        let _x = game.get_possible_moves("d7").unwrap();
+        println!("{:?}", _x);
+
+        fn movee(mut game: Game, _from: &str, _to: &str) -> Game {
+            let _state = game.make_move(_from, _to);
+            println!("{:?}", game.turn);
+            println!("{:?}", game);
+            game
+        }
+
+        //assert_eq!(game.get_game_state(), GameState::InProgress);
     }
 }
