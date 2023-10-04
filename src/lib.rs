@@ -14,15 +14,15 @@ pub enum GameState {
 #[derive(Clone)]
 pub struct Game {
     state: GameState,
-    turn: PieceColor,
-    gameboard: Vec<Option<Piece>>,
+    pub turn: PieceColor,
+    pub gameboard: Vec<Option<Piece>>,
     possible_moves: HashMap<usize, Vec<usize>>,
     distances: HashMap<usize, Vec<i16>>,
     string_to_int: HashMap<String, usize>,
     int_to_string: HashMap<usize, String>,
     movements: Vec<i16>,
     direction_finder: HashMap<i16, i16>,
-    promotion_pos: Option<usize>,
+    pub promotion_pos: Option<usize>,
 }
 
 impl Game {
