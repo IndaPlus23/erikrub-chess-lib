@@ -776,8 +776,8 @@ impl Game {
             board.push(Some(Piece::new(PieceType::Rook, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Knight, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Bishop, PieceColor::Black)));
-            board.push(Some(Piece::new(PieceType::King, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Queen, PieceColor::Black)));
+            board.push(Some(Piece::new(PieceType::King, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Bishop, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Knight, PieceColor::Black)));
             board.push(Some(Piece::new(PieceType::Rook, PieceColor::Black)));
@@ -801,8 +801,8 @@ impl Game {
             board.push(Some(Piece::new(PieceType::Rook, PieceColor::White)));
             board.push(Some(Piece::new(PieceType::Knight, PieceColor::White)));
             board.push(Some(Piece::new(PieceType::Bishop, PieceColor::White)));
-            board.push(Some(Piece::new(PieceType::King, PieceColor::White)));
             board.push(Some(Piece::new(PieceType::Queen, PieceColor::White)));
+            board.push(Some(Piece::new(PieceType::King, PieceColor::White)));
             board.push(Some(Piece::new(PieceType::Bishop, PieceColor::White)));
             board.push(Some(Piece::new(PieceType::Knight, PieceColor::White)));
             board.push(Some(Piece::new(PieceType::Rook, PieceColor::White)));
