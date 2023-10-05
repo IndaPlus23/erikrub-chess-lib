@@ -820,8 +820,8 @@ pub struct Piece {
 impl Piece {
     pub fn new(piecetype: PieceType, piececolor: PieceColor) -> Piece {
         Piece {
-            piecetype,
-            piececolor,
+            pub piecetype,
+            pub piececolor,
             hasmoved: false,
         }
     }
