@@ -51,16 +51,15 @@ impl Game {
     }
 
     pub fn make_move(&mut self, _from: &str, _to: &str) -> Option<GameState> {
+        
         if self.state != GameState::SetPromotion {
             let pos = *self.string_to_int.get(_from).unwrap();
             let newpos = *self.string_to_int.get(_to).unwrap();
-    
             let allowed: bool;
             let is_pawn: bool;
             {
                 let board = &mut self.gameboard;
                 let piece = board.get_mut(pos).unwrap();
-    
                 allowed = match piece {
                     Some(piece) if piece.piececolor == self.turn => self
                         .possible_moves
@@ -78,26 +77,23 @@ impl Game {
                     }
                     _ => false,
                 };
-    
                 if allowed {
                     board.swap(pos, newpos);
                     board[pos] = None;
                 }
             }
-    
             let mut state = GameState::InProgress;
             if allowed {
                 if is_pawn {
                     state = self.check_promotion(newpos);
                 }
-    
+                
                 if state == GameState::SetPromotion {
                     self.promotion_pos = Some(newpos);
                     self.possible_moves = HashMap::new();
                 }
                 else {
                     state = self.get_all_possible_moves(self.turn).1;
-    
                     if self.turn == PieceColor::White {
                         self.turn = PieceColor::Black;
                     } else {
@@ -105,7 +101,6 @@ impl Game {
                     }
                     self.possible_moves = self.get_all_possible_moves(self.turn).0;
                 }
-                
             }
     
             self.state = state;
@@ -339,7 +334,6 @@ impl Game {
         let mut map: HashMap<usize, Vec<usize>> = HashMap::new();
         let mut allowed_direction: HashMap<usize, usize> = HashMap::new(); //Blocking and axis
         let mut state = GameState::InProgress;
-
         let mut posi = 0;
         while posi < 64 {//Is piece blocking check
             let piece: &Option<Piece> = self.gameboard.get(posi).unwrap();
@@ -373,7 +367,7 @@ impl Game {
             }
             posi = posi + 1;
         }
-
+        
         let mut position = 0;
         while position < 64 {
             let piece: &Option<Piece> = self.gameboard.get(position).unwrap();
@@ -567,23 +561,16 @@ impl Game {
         let mut moves: Vec<usize> = Vec::new();
         let mut state = GameState::InProgress;
 
-        /* 
-        println!("");
-        println!("pos {}", position);
-        println!("turn {:?}", turn);
-        println!("aturn {:?}", self.turn);
-        println!("");
-        */
+        
         let mut reverse: i16 = -1;
         if turn == PieceColor::Black {
             reverse = reverse + 2;
         }
 
-       // println!("reverse {}", reverse);
-
         let mut direction: i16 = 7;
         while direction <= 9 {
             let dir = *self.direction_finder.get(&direction).unwrap(); //direction_finder: HashMap::from([(7, 5), (8, 4), (9, 3), (-7, 1), (-8, 0), (-9, 7)])
+            
             if dir == allowed as i16
                 || dir + 4 == allowed as i16
                 || dir == (allowed as i16) + 4
@@ -636,8 +623,9 @@ impl Game {
                         }
                     }
                 }
-                direction = direction + 1;
+                
             }
+            direction = direction + 1;
         }
         (moves, state)
     }
@@ -812,16 +800,16 @@ impl Game {
 
 #[derive(Clone)]
 pub struct Piece {
-    piecetype: PieceType,
-    piececolor: PieceColor,
+    pub piecetype: PieceType,
+    pub piececolor: PieceColor,
     hasmoved: bool,
 }
 
 impl Piece {
     pub fn new(piecetype: PieceType, piececolor: PieceColor) -> Piece {
         Piece {
-            pub piecetype,
-            pub piececolor,
+            piecetype,
+            piececolor,
             hasmoved: false,
         }
     }
@@ -927,28 +915,35 @@ mod tests {
         let mut game = Game::new();
         println!("{:?}", game.get_game_state());
         println!("{:?}", game);
+        println!("----------------");
         game.make_move("d2", "d4");
         println!("{:?}", game.get_game_state());
         println!("{:?}", game);
+        println!("----------------");
         game.make_move("h7", "h5");
         println!("{:?}", game.get_game_state());
         println!("{:?}", game);
+        println!("----------------");
         game.make_move("d1", "d2");
         println!("{:?}", game.get_game_state());
         println!("{:?}", game);
-
+        println!("----------------");
         game.make_move("h8", "h6");
         println!("{:?}", game.get_game_state());
         println!("{:?}", game);
-
-        game.make_move("d2", "e3");
+        println!("-------before ---------");
+        println!("{:?}", game.get_possible_moves("d2"));
+        game.make_move("d2", "d3");
+        println!("-------after---------");
+       
         println!("{:?}", game.get_game_state());
         println!("{:?}", game);
-
+        println!("----------------");
+        println!("{:?}", game.get_possible_moves("h6"));
         game.make_move("h6", "e6");
         println!("{:?}", game.get_game_state());
         println!("{:?}", game);
-
+        println!("----------------");
         println!("{:?}", game.get_possible_moves("e3"));
 
         /* 
